@@ -1,17 +1,80 @@
-/*eslint-disable*/
-import React, {useEffect, useState} from "react";
-import {Progress} from 'antd';
-import {getChequeEarningStats} from "services/chequeService.js";
-import themeStyle from "utils/themeStyle.js";
-import {t} from "utils/text.js";
+import React, { useEffect, useState } from 'react';
+import { Tooltip } from 'antd';
+import { getChequeEarningAllStats } from 'services/chequeService.js';
+import { t } from 'utils/text.js';
+import { MULTIPLE_CURRENCY_LIST } from 'utils/constants';
+import MultipleCurrenyList from './MultipleCurrenyList.js';
+import { switchBalanceUnit } from 'utils/BTFSUtil.js';
+import { ChequeMain } from './ChequeStats.js';
 
-let strokeColor = {
-    '0%': '#108ee9',
-    '100%': '#87d068',
+const ReceivedChequesMain = ({ chequesStats }) => {
+    const { chequeReceivedCount, cashedCountPercent, cashedCount, uncashedCount } = chequesStats;
+    const title = <h5 className={'text-base font-bold theme-text-main'}>{t('received_cheques')}</h5>;
+    return (
+        <ChequeMain
+            title={title}
+            total={chequeReceivedCount}
+            cashed={cashedCount}
+            uncashed={uncashedCount}
+            percent={cashedCountPercent}
+        />
+    );
 };
 
-export default function ChequeEarningStats({color}) {
+const ReceivedCheques = ({ chequesStats, earningCountAllStatsData, color }) => {
+    return (
+        <div
+            className={
+                'relative break-words rounded-2xl mb-2 xl:mb-0 theme-bg theme-text-main common-box-shadow'
+            }>
+            <div className="flex flex-col justify-between" style={{ height: 467 }}>
+                <ReceivedChequesMain chequesStats={chequesStats} color={color} />
+                <MultipleCurrenyList type="recievedCheques" color={color} dataList={earningCountAllStatsData} />
+            </div>
+        </div>
+    );
+};
 
+const ReceivedAmountMain = ({ chequesStats, color }) => {
+    let { chequeReceivedValue, cashedValuePercent, cashedValue, uncashedValue } = chequesStats;
+    chequeReceivedValue = switchBalanceUnit(chequeReceivedValue, 1);
+    cashedValue = switchBalanceUnit(cashedValue, 1);
+    uncashedValue = switchBalanceUnit(uncashedValue, 1);
+    const title = (
+        <div className="flex items-center theme-text-main">
+            <h5 className={'text-base font-bold theme-text-main'}>{t('received_cheques_amount')}</h5>
+            <Tooltip title={t('cheques_amount_tooltip')}>
+                <div className="ml-1">
+                    <i className="fas fa-info-circle"></i>
+                </div>
+            </Tooltip>
+        </div>
+    );
+
+    return (
+        <ChequeMain
+            title={title}
+            total={chequeReceivedValue}
+            cashed={cashedValue}
+            uncashed={uncashedValue}
+            percent={cashedValuePercent}
+            unit="BTT"
+        />
+    );
+};
+
+const ReceivedAmount = ({ chequesStats, earningValueAllStatsData, color }) => {
+    return (
+        <div className={'relative break-words rounded-2xl theme-bg theme-text-main common-box-shadow'}>
+            <div className="flex flex-col justify-between" style={{ height: 467 }}>
+                <ReceivedAmountMain color={color} chequesStats={chequesStats} />
+                <MultipleCurrenyList color={color} dataList={earningValueAllStatsData} />
+            </div>
+        </div>
+    );
+};
+
+export default function ChequeEarningStats({ color }) {
     const [chequesStats, setChequesStats] = useState({
         chequeReceivedCount: 0,
         uncashedCount: 0,
@@ -22,13 +85,17 @@ export default function ChequeEarningStats({color}) {
         cashedCountPercent: 0,
         cashedValuePercent: 0,
     });
+    const [earningCountAllStatsData, setEarningCountAllStatsData] = useState(MULTIPLE_CURRENCY_LIST);
+    const [earningValueAllStatsData, setEarningValueAllStatsData] = useState(MULTIPLE_CURRENCY_LIST);
 
     useEffect(() => {
         let didCancel = false;
         const fetchData = async () => {
-            let data = await getChequeEarningStats();
+            let { earningCountAllStatsData, earningValueAllStatsData, WBTTData } = await getChequeEarningAllStats();
             if (!didCancel) {
-                setChequesStats(data);
+                setChequesStats(WBTTData);
+                setEarningCountAllStatsData(() => earningCountAllStatsData);
+                setEarningValueAllStatsData(() => earningValueAllStatsData);
             }
         };
         fetchData();
@@ -38,87 +105,26 @@ export default function ChequeEarningStats({color}) {
     }, []);
 
     return (
-        <>
-            <div className="relative pt-4 pb-4">
-                <div className="mx-auto w-full">
-                    <div className="flex flex-wrap">
-                        <div className="w-full xl:w-6/12 xl:pr-2">
-                            <div
-                                className={"relative break-words rounded mb-2 xl:mb-0  " + themeStyle.bg[color] + themeStyle.text[color]}>
-                                <div className="flex flex-col justify-between p-4 h-180-px">
-                                    <div>
-                                        <h5 className={"uppercase font-bold " + themeStyle.title[color]}>
-                                            {t('received_cheques')}
-                                        </h5>
-                                    </div>
-                                    <div className='flex justify-between'>
-                                        <div>
-                                            <span className='font-semibold text-xl'>{chequesStats.chequeReceivedCount} </span>
-                                        </div>
-                                        <div>
-                                            {chequesStats.cashedCountPercent} %
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Progress className={color} percent={chequesStats.cashedCountPercent} showInfo={false}
-                                                  strokeWidth={30} strokeColor={strokeColor}/>
-                                    </div>
-                                    <div className='flex justify-between'>
-                                        <div>
-                                            {t('cashed')}
-                                            <br/>
-                                            {chequesStats.cashedCount}
-                                        </div>
-                                        <div>
-                                            {t('uncashed')}
-                                            <br/>
-                                            {chequesStats.uncashedCount}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <div className="relative pt-4 pb-4">
+            <div className="mx-auto w-full">
+                <div className="flex flex-wrap common-card p-0" style={{boxShadow: 'none'}}>
+                    <div className="w-full xl:w-6/12 xl:pr-2">
+                        <ReceivedCheques
+                            chequesStats={chequesStats}
+                            earningCountAllStatsData={earningCountAllStatsData}
+                            color={color}
+                        />
+                    </div>
 
-                        <div className="w-full xl:w-6/12 xl:pl-2">
-                            <div
-                                className={"relative break-words rounded " + themeStyle.bg[color] + themeStyle.text[color]}>
-                                <div className="flex flex-col justify-between p-4 h-180-px">
-                                    <div>
-                                        <h5 className={"uppercase font-bold " + themeStyle.title[color]}>
-                                            {t('received_cheques_amount')}
-                                        </h5>
-                                    </div>
-                                    <div className='flex justify-between'>
-                                        <div>
-                                            <span className='font-semibold text-xl'>{chequesStats.chequeReceivedValue} </span>
-                                            <span className='text-xs'>WBTT</span>
-                                        </div>
-                                        <div>
-                                            {chequesStats.cashedValuePercent} %
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <Progress className={color} percent={chequesStats.cashedValuePercent} showInfo={false}
-                                                  strokeWidth={30} strokeColor={strokeColor}/>
-                                    </div>
-                                    <div className='flex justify-between'>
-                                        <div>
-                                            {t('cashed')}
-                                            <br/>
-                                            {chequesStats.cashedValue} <span className='text-xs'>WBTT</span>
-                                        </div>
-                                        <div>
-                                            {t('uncashed')}
-                                            <br/>
-                                            {chequesStats.uncashedValue} <span className='text-xs'>WBTT</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="w-full xl:w-6/12 xl:pl-2">
+                        <ReceivedAmount
+                            chequesStats={chequesStats}
+                            earningValueAllStatsData={earningValueAllStatsData}
+                            color={color}
+                        />
                     </div>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
